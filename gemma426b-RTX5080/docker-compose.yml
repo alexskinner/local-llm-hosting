@@ -1,0 +1,45 @@
+services:
+  gemma4-26b-a4b:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    container_name: gemma4-26b-a4b
+    runtime: nvidia
+    ipc: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0']
+              capabilities: [gpu]
+    volumes:
+      - ./llama-cache:/root/.cache/llama.cpp
+      - ./logs:/logs
+    ports:
+      - "8080:8080"
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    command: >
+      -hf unsloth/gemma-4-26B-A4B-it-GGUF
+      --hf-file gemma-4-26B-A4B-it-UD-IQ3_XXS.gguf
+      --host 0.0.0.0
+      --port 8080
+      --ctx-size 98304
+      --n-gpu-layers 99
+      --flash-attn on
+      --parallel 1
+      --batch-size 2048
+      --ubatch-size 512
+      --threads 8
+      --threads-batch 8
+      --no-mmap
+      --cont-batching
+      --jinja
+      --reasoning off
+      --reasoning-budget 0
+      --cache-type-k q4_0
+      --cache-type-v q4_0
+      --temp 0.9
+      --top-p 0.95
+      --top-k 64
+      --min-p 0.05
+    restart: unless-stopped

@@ -1,0 +1,53 @@
+# Qwen3.5-27B NVFP4 on RTX PRO 6000 Blackwell (AMD host) - Recommended
+services:
+  qwen-blackwell:
+    image: vllm/vllm-openai:nightly   # fallback to official nightly with tweaks
+    # Alternative if you want a patched one: try avarok/dgx-vllm-nvfp4-kernel:v22 (x86_64 version)
+    # image: avarok/dgx-vllm-nvfp4-kernel:v22
+    container_name: qwen35-blackwell-nvfp4
+    runtime: nvidia
+    ipc: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['1']
+              capabilities: [gpu]
+    volumes:
+      - /opt/hf-cache:/root/.cache/huggingface
+      - ./logs:/var/log/vllm
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    ports:
+      - "8000:8000"
+    environment:
+      - CUDA_DEVICE_ORDER=PCI_BUS_ID
+      - HF_HUB_ENABLE_HF_TRANSFER=1
+      - OMP_NUM_THREADS=12
+      - MKL_NUM_THREADS=12
+      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+    command: >
+      osoleve/Qwen3.5-27B-Text-NVFP4-MTP
+      --served-model-name qwen3.5-27b
+      --limit-mm-per-prompt '{"image":0,"video":0}'
+      --quantization modelopt_fp4
+      --tensor-parallel-size 1
+      --max-model-len 262144
+      --max-num-seqs 20
+      --max-num-batched-tokens 16384
+      --block-size 32
+      --gpu-memory-utilization 0.90
+      --enable-prefix-caching
+      --enable-auto-tool-choice
+      --tool-call-parser qwen3_coder
+      --reasoning-parser qwen3
+      --attention-backend FLASHINFER
+      --speculative-config '{"method":"mtp","num_speculative_tokens":3}'
+      --enforce-eager
+      -O3
+      --no-use-tqdm-on-load
+      --host 0.0.0.0
+      --port 8000
+    restart: unless-stopped
