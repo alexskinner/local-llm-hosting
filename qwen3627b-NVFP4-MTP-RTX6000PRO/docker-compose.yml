@@ -1,0 +1,52 @@
+# Qwen3.6-27B Text-NVFP4-MTP - 262k Context - Dedicated GPU (Clean Autotune)
+services:
+  qwen-blackwell:
+    image: vllm/vllm-openai:nightly
+    container_name: qwen36-blackwell-nvfp4
+    runtime: nvidia
+    ipc: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['1']
+              capabilities: [gpu]
+    volumes:
+      - /opt/hf-cache:/root/.cache/huggingface
+      - ./logs:/var/log/vllm
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    ports:
+      - "8000:8000"
+    environment:
+      - CUDA_DEVICE_ORDER=PCI_BUS_ID
+      - HF_HUB_ENABLE_HF_TRANSFER=1
+      - OMP_NUM_THREADS=16
+      - MKL_NUM_THREADS=16
+      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+    command: >
+      sakamakismile/Qwen3.6-27B-Text-NVFP4-MTP
+      --trust-remote-code
+      --tokenizer Qwen/Qwen3.6-27B
+      --served-model-name 96gbBigModel
+      --limit-mm-per-prompt '{"image":0,"video":0}'
+      --quantization modelopt
+      --tensor-parallel-size 1
+      --max-model-len 262144
+      --max-num-seqs 28
+      --max-num-batched-tokens 24576
+      --block-size 128
+      --gpu-memory-utilization 0.93
+      --enable-prefix-caching
+      --enable-auto-tool-choice
+      --tool-call-parser qwen3_coder
+      --reasoning-parser qwen3
+      --attention-backend FLASHINFER
+      --speculative-config '{"method":"mtp","num_speculative_tokens":3}'
+      -O3
+      --no-use-tqdm-on-load
+      --host 0.0.0.0
+      --port 8000
+    restart: unless-stopped
